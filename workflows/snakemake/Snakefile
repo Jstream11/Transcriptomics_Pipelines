@@ -1,0 +1,60 @@
+import pandas as pd
+
+TEST_DATA = config['test_data_dir']
+SAMPLESHEET_PATH= config['sample_sheet']
+
+SAMPLESHEET = pd.read_csv(SAMPLESHEET_PATH)
+SAMPLES = SAMPLESHEET['sample'].astype(str).tolist() 
+
+rule all:
+    input:
+        'results/multiqc_report.html',
+        'results/samplesheet.validated.csv'
+
+
+rule validate_samplesheet:
+    """
+    validate the samplesheet to ensure it has the required columns and that the FASTQ files exist and are valid.
+    """
+    input:
+        samplesheet = SAMPLESHEET_PATH
+    output:
+        validated_samplesheet = 'results/samplesheet.validated.csv'
+    conda:
+        'envs/python.yaml'
+    script:
+        '../../scripts/validate_samplesheet.py'
+
+## run fastqc   
+rule run_fastqc:
+    """
+    run fastqc on the FASTQ files specified in the samplesheet.
+    """
+    input:
+        fastq_1 = lambda wildcards: SAMPLESHEET.loc[SAMPLESHEET['sample'] == wildcards.sample, 'fastq_1'].values[0],
+        fastq_2 = lambda wildcards: SAMPLESHEET.loc[SAMPLESHEET['sample'] == wildcards.sample, 'fastq_2'].values[0]
+    output:
+        fastqc_1 = 'results/fastqc/{sample}_1_fastqc.html',
+        fastqc_2 = 'results/fastqc/{sample}_2_fastqc.html'
+    conda:
+        'envs/fastqc.yaml'
+    shell:
+        """
+        fastqc --outdir results/fastqc {input.fastq_1} {input.fastq_2}
+        """
+
+rule run_multiqc:
+    """
+    run multiqc to aggregate the fastqc results.
+    """
+    input:
+        expand('results/fastqc/{sample}_1_fastqc.html', sample=SAMPLES),
+        expand('results/fastqc/{sample}_2_fastqc.html', sample=SAMPLES)
+    output:
+        'results/multiqc_report.html'
+    conda:
+        'envs/multiqc.yaml'
+    shell:
+        """
+        multiqc results/fastqc -o results/
+        """

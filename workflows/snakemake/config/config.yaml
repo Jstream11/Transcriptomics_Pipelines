@@ -1,0 +1,2 @@
+test_data_dir: data/nf-core-test
+sample_sheet: data/nf-core-test/samplesheet.csv

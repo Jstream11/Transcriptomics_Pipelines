@@ -1,0 +1,2 @@
+sample,fastq_1,fastq_2,strandedness
+SRR6357070,data/nf-core-test/SRR6357070_1.fastq.gz,data/nf-core-test/SRR6357070_2.fastq.gz,reverse
