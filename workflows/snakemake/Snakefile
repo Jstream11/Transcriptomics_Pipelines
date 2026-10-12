@@ -64,7 +64,8 @@ rule validate_samplesheet:
     script:
         '../../scripts/validate_samplesheet.py'
 
-## run fastqc   
+## run fastqc
+# FIXME: running for paired samples only, need to add support for single-end samples   
 rule run_fastqc:
     """
     run fastqc on the FASTQ files specified in the samplesheet.
@@ -84,6 +85,7 @@ rule run_fastqc:
         fastqc --outdir {params.output_dir} {input.fastq_1} {input.fastq_2}
         """
 
+# FIXME: running for paired samples only, need to add support for single-end samples   
 rule run_multiqc:
     """
     run multiqc to aggregate the fastqc results.

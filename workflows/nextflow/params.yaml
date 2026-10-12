@@ -1,0 +1,2 @@
+samplesheet: 'data/nf-core-test/samplesheet.csv'
+outdir: 'results/nextflow'
