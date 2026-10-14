@@ -2,7 +2,7 @@
 
 This project is for my portfolio to demonstrate building reproducible transcriptomics workflows with Snakemake and Nextflow. The goal is for both workflows to use the same inputs and produce comparable outputs.
 
-**Status:** Snakemake development is in progress; the Nextflow workflow has not been implemented yet.
+**Status:** Snakemake development is in progress; the Nextflow workflow is in progress.
 
 ## Structure
 

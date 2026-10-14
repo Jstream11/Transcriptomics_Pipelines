@@ -84,7 +84,7 @@ if not PAIRED_END:
         params:
             output_dir = f'{RESULTS_DIR}/fastqc/raw'
         conda:
-            'envs/fastqc.yaml'
+            '../../envs/fastqc.yaml'
         shell:
             """
             fastqc --outdir {params.output_dir} {input.fastq_1}
@@ -103,7 +103,7 @@ if not PAIRED_END:
             outdir = f'{RESULTS_DIR}/multiqc/raw/',
             filename = 'multiqc_report.html',
         conda:
-            'envs/multiqc.yaml'
+            '../../envs/multiqc.yaml'
         shell:
             """
             multiqc --force --outdir {params.outdir} --filename {params.filename} {params.input_dir}
@@ -121,7 +121,7 @@ if not PAIRED_END:
                 trimmed_fastq_1 = f'{RESULTS_DIR}/trimmed/{trimmer}/{{sample}}_1_{trimmer}_trimmed.fastq.gz',
                 trimmed_report_html = f'{RESULTS_DIR}/trimmed/{trimmer}/{{sample}}_{trimmer}_report.html'   
             conda:
-                'envs/fastp.yaml'
+                '../../envs/fastp.yaml'
             shell:
                 """
                 fastp -i {input.fastq_1} -o {output.trimmed_fastq_1} -h {output.trimmed_report_html}
@@ -138,7 +138,7 @@ if not PAIRED_END:
                 trimmed_fastq_1 = f'{RESULTS_DIR}/trimmed/{trimmer}/{{sample}}_1_{trimmer}_trimmed.fastq.gz',
                 cutadapt_log = f'{RESULTS_DIR}/trimmed/{trimmer}/{{sample}}_1_{trimmer}.log'
             conda:
-                'envs/cutadapt.yaml'
+                '../../envs/cutadapt.yaml'
             params:
                 adapter = CUSTOM_ADAPTERS
             shell:
@@ -159,7 +159,7 @@ else:
         params:
             output_dir = f'{RESULTS_DIR}/fastqc/raw'
         conda:
-            'envs/fastqc.yaml'
+            '../../envs/fastqc.yaml'
         shell:
             """
             fastqc --outdir {params.output_dir} {input.fastq_1} {input.fastq_2}
@@ -179,7 +179,7 @@ else:
             outdir = f'{RESULTS_DIR}/multiqc/raw/',
             filename = 'multiqc_report.html',
         conda:
-            'envs/multiqc.yaml'
+            '../../envs/multiqc.yaml'
         shell:
             """
             multiqc --force --outdir {params.outdir} --filename {params.filename} {params.input_dir}
@@ -199,7 +199,7 @@ else:
                 trimmed_fastq_2 = f'{RESULTS_DIR}/trimmed/{trimmer}/{{sample}}_2_{trimmer}_trimmed.fastq.gz',
                 trimmed_report_html = f'{RESULTS_DIR}/trimmed/{trimmer}/{{sample}}_{trimmer}_report.html'
             conda:
-                'envs/fastp.yaml'
+                '../../envs/fastp.yaml'
             shell:
                 """
                 fastp -i {input.fastq_1} -I {input.fastq_2} -o {output.trimmed_fastq_1} -O {output.trimmed_fastq_2} -h {output.trimmed_report_html}   
@@ -219,7 +219,7 @@ else:
                 trimmed_fastq_2 = f'{RESULTS_DIR}/trimmed/{trimmer}/{{sample}}_2_{trimmer}_trimmed.fastq.gz',
                 cutadapt_log = f'{RESULTS_DIR}/trimmed/{trimmer}/{{sample}}_1_{trimmer}.log'
             conda:
-                'envs/cutadapt.yaml'
+                '../../envs/cutadapt.yaml'
             params:
                 adapter = CUSTOM_ADAPTERS
             shell:
@@ -240,7 +240,7 @@ rule run_fastqc_trimmed:
     params:
         output_dir = f'{RESULTS_DIR}/fastqc/trimmed'
     conda:
-        'envs/fastqc.yaml'
+        '../../envs/fastqc.yaml'
     shell:
         """
         fastqc --outdir {params.output_dir} {input.trimmed_fastq_1} {input.trimmed_fastq_2}
@@ -263,7 +263,7 @@ rule run_multiqc_trimmed:
         outdir = f'{RESULTS_DIR}/multiqc/trimmed/',
         filename = 'multiqc_report_trimmed.html'
     conda:
-        'envs/multiqc.yaml'
+        '../../envs/multiqc.yaml'
     shell:
         """
         multiqc --force --outdir {params.outdir} --filename {params.filename} {params.fastqc_dir} {params.trimmer_dir}
@@ -281,7 +281,7 @@ rule get_reference_genome:
         ref_genome_fa = REF_GENOME_FA,
         ref_genes_gtf = REF_GENES_GTF
     conda:
-        'envs/star.yaml'
+        '../../envs/star.yaml'
     shell:
         """
         mkdir -p {params.genome_dir}
@@ -304,7 +304,7 @@ if ALIGNER == 'star':
         params:
             genome_dir = f'{RESULTS_DIR}/star/genome_index'
         conda:
-            'envs/star.yaml'
+            '../../envs/star.yaml'
         shell:
             """ 
             STAR --runThreadN 4 --runMode genomeGenerate --genomeDir {params.genome_dir} --genomeFastaFiles {input.genome_fa} --sjdbGTFfile {input.genes_gtf} --sjdbOverhang 100
@@ -325,7 +325,7 @@ if ALIGNER == 'star':
             genome_dir = f'{RESULTS_DIR}/star/genome_index',
             star_output_dir = f'{RESULTS_DIR}/star/{{sample}}/'
         conda:
-            'envs/star.yaml'
+            '../../envs/star.yaml'
         shell:
             """
             STAR --runThreadN 4 \
@@ -347,7 +347,7 @@ if ALIGNER == 'salmon':
         output:
             salmon_index_dir = directory(f"{RESULTS_DIR}/salmon/salmon_index")  
         conda:
-            'envs/salmon.yaml' 
+            '../../envs/salmon.yaml' 
         threads: 2
         shell:
             """
@@ -366,7 +366,7 @@ if ALIGNER == 'salmon':
         params:
             output_dir = f"{RESULTS_DIR}/salmon/{{sample}}"
         conda:
-            'envs/salmon.yaml'
+            '../../envs/salmon.yaml'
         shell:
             """
             salmon quant -i {input.salmon_index} -l A -1 {input.trimmed_fastq_1} -2 {input.trimmed_fastq_2} -p 4 --validateMappings -o {params.output_dir}
@@ -389,7 +389,7 @@ rule run_multiqc_all:
         outdir = f'{RESULTS_DIR}/multiqc/all/',
         filename = 'multiqc_report_all.html'
     conda:
-        'envs/multiqc.yaml'
+        '../../envs/multiqc.yaml'
     shell:
         """
         multiqc --force --outdir {params.outdir} --filename {params.filename} {params.multiqc_dirs} {params.aligner_dirs}
