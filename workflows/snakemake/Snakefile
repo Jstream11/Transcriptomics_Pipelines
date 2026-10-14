@@ -1,112 +1,114 @@
 
 import pandas as pd
+import gzip
+from pathlib import Path
+import pandas as pd
 
 RESULTS_DIR = config.get('results_dir', 'results')
 SAMPLESHEET_PATH= config['sample_sheet']
 PAIRED_END = config.get('paired_end', True)
-SAMPLESHEET = pd.read_csv(SAMPLESHEET_PATH)
-SAMPLES = SAMPLESHEET['sample'].astype(str).tolist() 
 CUSTOM_ADAPTERS = config.get('custom_adapters', None)
 REF_GENOME_FA = config.get('reference_genome_fa', "ftp://ftp.ensembl.org/pub/release-104/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz")
 REF_GENES_GTF = config.get('reference_genes_gtf', "ftp://ftp.ensembl.org/pub/release-104/gtf/homo_sapiens/Homo_sapiens.GRCh38.104.gtf.gz")
 ALIGNER = config.get('aligner', 'star')
 
+required_columns = ['sample', 'fastq_1', 'fastq_2', 'strandedness']
+allowed_strandedness = ['auto', 'unstranded', 'forward', 'reverse']
+
+def read_fastq(path):
+    if path.endswith('.gz'):
+        with gzip.open(path, 'rt') as fastq:
+            header = fastq.readline().strip()
+            print(f"Reading gzipped FASTQ file: {path}")
+    else:
+        with open(path, 'r') as fastq:
+            header = fastq.readline().strip()
+            print(f"Reading FASTQ file: {path}")
+    if not header.startswith('@'):
+        raise ValueError(f"Error: The file {path} does not appear to be a valid FASTQ file.")
+    read_id = header[1:].split()[0]
+    return read_id.removesuffix("/1").removesuffix("/2")
+
+try:
+    Path(SAMPLESHEET_PATH).exists
+except FileNotFoundError:
+    raise ValueError("Error: The file does not exist.")
+
+SAMPLESHEET = pd.read_csv(SAMPLESHEET_PATH)
+found_columns = SAMPLESHEET.columns.tolist()
+if found_columns != required_columns:
+    raise ValueError(f"Error: The SAMPLESHEET is missing required columns. Found columns: {found_columns}. Required columns: {required_columns}.")
+if not SAMPLESHEET['strandedness'].isin(allowed_strandedness).all():
+    raise ValueError(f"Error: The SAMPLESHEET contains invalid values for 'strandedness'. Allowed values: {allowed_strandedness}.")
+
+for _, row in SAMPLESHEET.iterrows():
+    read1 = row["fastq_1"]
+    read2 = row["fastq_2"]
+    sample = row["sample"]
+
+    if not Path(read1).is_file():
+        raise FileNotFoundError(f"FASTQ not found: {read1}")
+
+    if pd.notna(read2) and read2:
+        if not Path(read2).is_file():
+            raise FileNotFoundError(f"FASTQ not found: {read2}")
+
+        if read_fastq(read1) != read_fastq(read2):
+            raise ValueError(f"First read IDs do not match for sample {sample}")
+
+print("Samplesheet validation completed successfully.")
+SAMPLES = SAMPLESHEET['sample'].astype(str).tolist() 
+
 
 TARGETS = [
     f'{RESULTS_DIR}/multiqc/raw/multiqc_report.html',
     f'{RESULTS_DIR}/multiqc/trimmed/multiqc_report_trimmed.html',
-    f'{RESULTS_DIR}/samplesheet.validated.csv',
     f'{RESULTS_DIR}/multiqc/all/multiqc_report_all.html'
 ]
-
-'''
-if CUSTOM_ADAPTERS:
-    TARGETS += expand(
-        f"{RESULTS_DIR}/trimmed/cutadapt/{{sample}}_1_cutadapt.log",
-        sample=SAMPLES,
-    )
-else:
-    TARGETS += expand(
-        f"{RESULTS_DIR}/trimmed/fastp/{{sample}}_fastp_report.html",
-        sample=SAMPLES,
-    )
-
-if ALIGNER =='star':
-    TARGETS += expand(
-                    f"{RESULTS_DIR}/star/{{sample}}/Aligned.sortedByCoord.out.bam",
-                    sample=SAMPLES,
-                )
-    TARGETS += expand(
-                    f"{RESULTS_DIR}/star/{{sample}}/Log.final.out",
-                    sample=SAMPLES,
-                )
-if ALIGNER == 'salmon':
-    TARGETS += expand(
-                    f"{RESULTS_DIR}/salmon/{{sample}}/quant.sf",
-                    sample=SAMPLES,
-                )'''
 
 
 rule all:
     input:
         TARGETS
 
-rule validate_samplesheet:
-    """
-    validate the samplesheet to ensure it has the required columns and that the FASTQ files exist and are valid.
-    """
-    input:
-        samplesheet = SAMPLESHEET_PATH
-    output:
-        validated_samplesheet = f'{RESULTS_DIR}/samplesheet.validated.csv'
-    conda:
-        'envs/python.yaml'
-    script:
-        '../../scripts/validate_samplesheet.py'
 
-## run fastqc
-# FIXME: running for paired samples only, need to add support for single-end samples   
-rule run_fastqc:
-    """
-    run fastqc on the FASTQ files specified in the samplesheet.
-    """
-    input:
-        fastq_1 = lambda wildcards: SAMPLESHEET.loc[SAMPLESHEET['sample'] == wildcards.sample, 'fastq_1'].values[0],
-        fastq_2 = lambda wildcards: SAMPLESHEET.loc[SAMPLESHEET['sample'] == wildcards.sample, 'fastq_2'].values[0]
-    output:
-        fastqc_1 = f'{RESULTS_DIR}/fastqc/raw/{{sample}}_1_fastqc.html',
-        fastqc_2 = f'{RESULTS_DIR}/fastqc/raw/{{sample}}_2_fastqc.html'
-    params:
-        output_dir = f'{RESULTS_DIR}/fastqc/raw'
-    conda:
-        'envs/fastqc.yaml'
-    shell:
-        """
-        fastqc --outdir {params.output_dir} {input.fastq_1} {input.fastq_2}
-        """
-
-# FIXME: running for paired samples only, need to add support for single-end samples   
-rule run_multiqc:
-    """
-    run multiqc to aggregate the fastqc results.
-    """
-    input:
-        expand(f'{RESULTS_DIR}/fastqc/raw/{{sample}}_1_fastqc.html', sample=SAMPLES),
-        expand(f'{RESULTS_DIR}/fastqc/raw/{{sample}}_2_fastqc.html', sample=SAMPLES)
-    output:
-        f'{RESULTS_DIR}/multiqc/raw/multiqc_report.html'
-    params:
-        input_dir = f'{RESULTS_DIR}/fastqc/raw',
-        outdir = f'{RESULTS_DIR}/multiqc/raw/',
-        filename = 'multiqc_report.html',
-    conda:
-        'envs/multiqc.yaml'
-    shell:
-        """
-        multiqc --force --outdir {params.outdir} --filename {params.filename} {params.input_dir}
-        """
-### ADAPTER TRIMMING ###
 if not PAIRED_END:
+    rule run_fastqc:
+        """
+        run fastqc on the FASTQ files specified in the samplesheet.
+        """
+        input:
+            fastq_1 = lambda wildcards: SAMPLESHEET.loc[SAMPLESHEET['sample'] == wildcards.sample, 'fastq_1'].values[0]
+        output:
+            fastqc_1 = f'{RESULTS_DIR}/fastqc/raw/{{sample}}_1_fastqc.html'
+        params:
+            output_dir = f'{RESULTS_DIR}/fastqc/raw'
+        conda:
+            'envs/fastqc.yaml'
+        shell:
+            """
+            fastqc --outdir {params.output_dir} {input.fastq_1}
+            """
+   
+    rule run_multiqc:
+        """
+        run multiqc to aggregate the fastqc results.
+        """
+        input:
+            expand(f'{RESULTS_DIR}/fastqc/raw/{{sample}}_1_fastqc.html', sample=SAMPLES)
+        output:
+            f'{RESULTS_DIR}/multiqc/raw/multiqc_report.html'
+        params:
+            input_dir = f'{RESULTS_DIR}/fastqc/raw',
+            outdir = f'{RESULTS_DIR}/multiqc/raw/',
+            filename = 'multiqc_report.html',
+        conda:
+            'envs/multiqc.yaml'
+        shell:
+            """
+            multiqc --force --outdir {params.outdir} --filename {params.filename} {params.input_dir}
+            """
+### ADAPTER TRIMMING ###
     if not CUSTOM_ADAPTERS:
         trimmer = 'fastp'
         rule run_fastp_trimming:
@@ -144,6 +146,45 @@ if not PAIRED_END:
                 cutadapt -a {params.adapter} -o {output.trimmed_fastq_1} {input.fastq_1} > {output.cutadapt_log} 2>&1
                 """
 else:
+    rule run_fastqc:
+        """
+        run fastqc on the FASTQ files specified in the samplesheet.
+        """
+        input:
+            fastq_1 = lambda wildcards: SAMPLESHEET.loc[SAMPLESHEET['sample'] == wildcards.sample, 'fastq_1'].values[0],
+            fastq_2 = lambda wildcards: SAMPLESHEET.loc[SAMPLESHEET['sample'] == wildcards.sample, 'fastq_2'].values[0]
+        output:
+            fastqc_1 = f'{RESULTS_DIR}/fastqc/raw/{{sample}}_1_fastqc.html',
+            fastqc_2 = f'{RESULTS_DIR}/fastqc/raw/{{sample}}_2_fastqc.html'
+        params:
+            output_dir = f'{RESULTS_DIR}/fastqc/raw'
+        conda:
+            'envs/fastqc.yaml'
+        shell:
+            """
+            fastqc --outdir {params.output_dir} {input.fastq_1} {input.fastq_2}
+            """
+ 
+    rule run_multiqc:
+        """
+        run multiqc to aggregate the fastqc results.
+        """
+        input:
+            expand(f'{RESULTS_DIR}/fastqc/raw/{{sample}}_1_fastqc.html', sample=SAMPLES),
+            expand(f'{RESULTS_DIR}/fastqc/raw/{{sample}}_2_fastqc.html', sample=SAMPLES)
+        output:
+            f'{RESULTS_DIR}/multiqc/raw/multiqc_report.html'
+        params:
+            input_dir = f'{RESULTS_DIR}/fastqc/raw',
+            outdir = f'{RESULTS_DIR}/multiqc/raw/',
+            filename = 'multiqc_report.html',
+        conda:
+            'envs/multiqc.yaml'
+        shell:
+            """
+            multiqc --force --outdir {params.outdir} --filename {params.filename} {params.input_dir}
+            """
+### ADAPTER TRIMMING ###
     if not CUSTOM_ADAPTERS:
         trimmer = 'fastp'
         rule run_fastp_trimming:
@@ -336,8 +377,8 @@ rule run_multiqc_all:
     run multiqc to aggregate the results of the entire workflow.
     """
     input:
-        expand(f'{RESULTS_DIR}/multiqc/raw/multiqc_report.html', sample=SAMPLES),
-        expand(f'{RESULTS_DIR}/multiqc/trimmed/multiqc_report_trimmed.html', sample=SAMPLES),
+        f'{RESULTS_DIR}/multiqc/raw/multiqc_report.html',
+        f'{RESULTS_DIR}/multiqc/trimmed/multiqc_report_trimmed.html',
         expand(f'{RESULTS_DIR}/star/{{sample}}/Log.final.out', sample=SAMPLES) if ALIGNER == 'star' else 
             expand(f'{RESULTS_DIR}/salmon/{{sample}}/quant.sf', sample=SAMPLES)
     output:

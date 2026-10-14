@@ -1,31 +1,29 @@
 
-include { validateSamplesheet } from './modules/validateSamplesheet.nf'
+include { samplesheetToList } from 'plugin/nf-schema'
+
 include { FASTQC } from './modules/fastqc.nf'
+include { MULTIQC } from './modules/multiqc.nf'
 
 workflow {
     main:
-    samplesheet = channel.fromPath(params.samplesheet)
-    samplesheet_validated = validateSamplesheet(samplesheet)
-    samples= samplesheet_validated
-        .splitCsv(header: true)
-        .map { row ->
-            tuple(row.sample, file(row.fastq_1), file(row.fastq_2))
-        }
-    FASTQC(samples)
+    ch_samples = Channel.fromList(
+        samplesheetToList(params.sample_sheet, "assets/schema_input.json")
+    ) | map { meta, fq1, fq2 ->
+        tuple(meta + [single_end: !fq2], fq2 ? [fq1, fq2] : [fq1])
+      }
+    ch_samples.view()
+    # handles single and paired ends
+    ch_fastqc = FASTQC(ch_samples)
+    MULTIQC(ch_fastqc)
 
     publish:
-    fastqc_html = FASTQC.out.html
-    fastqc_zip = FASTQC.out.zip
+    multiqc_report = MULTIQC.out.html
 
 }
 
 output {
-        fastqc_html {
-            path 'fastqc'
-            mode 'copy'
-        }
-        fastqc_zip {
-            path 'fastqc'
+        multiqc_report {
+            path 'multiqc'
             mode 'copy'
         }
     }

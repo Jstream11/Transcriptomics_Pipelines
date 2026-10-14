@@ -1,14 +1,14 @@
 process FASTQC {
-    conda "${projectDir}/../../envs/python.yaml"
+    conda "${projectDir}/../../envs/fastqc.yaml"
     input:
-    tuple val(sample), path(fastq_1), path(fastq_2)
+    tuple val(meta), path(fastq)
 
     output:
-    tuple val(sample), path('*_fastqc.html'), emit: html
-    tuple val(sample), path('*_fastqc.zip'), emit: zip
+    tuple val(meta), path('*_fastqc.html'), emit: html
+    tuple val(meta), path('*_fastqc.zip'), emit: zip
 
     script:
     """
-        fastqc -o . $fastq_1 $fastq_2
+       fastqc -o . $fastq
     """
 }

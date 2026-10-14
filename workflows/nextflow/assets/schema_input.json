@@ -1,0 +1,18 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "sample":  { "type": "string", "pattern": "^\\S+$", "meta": ["id"] },
+      "fastq_1": { "type": "string", "format": "file-path", "exists": true,
+                   "pattern": "^\\S+\\.f(ast)?q\\.gz$" },
+      "fastq_2": { "type": "string", "format": "file-path", "exists": true,
+                   "pattern": "^\\S+\\.f(ast)?q\\.gz$" },
+      "strandedness": { "type": "string",
+                        "enum": ["auto","unstranded","forward","reverse"],
+                        "meta": ["strandedness"] }
+    },
+    "required": ["sample","fastq_1","strandedness"]
+  }
+}
