@@ -379,7 +379,7 @@ rule run_multiqc_all:
     input:
         f'{RESULTS_DIR}/multiqc/raw/multiqc_report.html',
         f'{RESULTS_DIR}/multiqc/trimmed/multiqc_report_trimmed.html',
-        expand(f'{RESULTS_DIR}/star/{{sample}}/Log.final.out', sample=SAMPLES) if ALIGNER == 'star' else 
+        aligner_reports = expand(f'{RESULTS_DIR}/star/{{sample}}/Log.final.out', sample=SAMPLES) if ALIGNER == 'star' else 
             expand(f'{RESULTS_DIR}/salmon/{{sample}}/quant.sf', sample=SAMPLES)
     output:
         f'{RESULTS_DIR}/multiqc/all/multiqc_report_all.html'
@@ -392,5 +392,8 @@ rule run_multiqc_all:
         '../../envs/multiqc.yaml'
     shell:
         """
-        multiqc --force --outdir {params.outdir} --filename {params.filename} {params.multiqc_dirs} {params.aligner_dirs}
+        multiqc --force \
+        --outdir {params.outdir} \
+        --filename {params.filename} \
+        {params.multiqc_dirs} {input.aligner_reports}
         """

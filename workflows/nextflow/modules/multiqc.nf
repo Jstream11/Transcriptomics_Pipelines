@@ -1,13 +1,13 @@
 process MULTIQC {
-    conda "${projectDir}/../../envs/mutliqc.yaml"
+    conda "${projectDir}/../../envs/multiqc.yaml"
     input:
-    tuple val(meta), path(qc)
+    path(qc)
 
     output:
-    tuple val(meta), path('multiqc_report.html'), emit: html
+    path('multiqc_report.html'), emit: html
 
     script:
     """
-       multiqc --force --outdir . --filename $qc
+       multiqc --force --outdir . --filename multiqc_report.html $qc
     """
 }

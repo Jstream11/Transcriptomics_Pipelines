@@ -9,6 +9,6 @@ process FASTQC {
 
     script:
     """
-       fastqc -o . $fastq
+       fastqc --outdir . $fastq
     """
 }
