@@ -1,2 +1,4 @@
 samplesheet: 'data/nf-core-test/samplesheet.csv'
 outdir: 'results/nextflow'
+reference_genome_fa: https://ftp.ensemblgenomes.ebi.ac.uk/pub/fungi/release-58/fasta/saccharomyces_cerevisiae/dna/Saccharomyces_cerevisiae.R64-1-1.dna.toplevel.fa.gz
+reference_genes_gtf: https://ftp.ensemblgenomes.ebi.ac.uk/pub/fungi/release-58/gtf/saccharomyces_cerevisiae/Saccharomyces_cerevisiae.R64-1-1.58.gtf.gz

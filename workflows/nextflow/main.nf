@@ -3,9 +3,10 @@ include { samplesheetToList } from 'plugin/nf-schema'
 
 include { FASTQC as FASTQC_raw } from './modules/fastqc.nf'
 include { FASTQC as FASTQC_trimmed } from './modules/fastqc.nf'
-include { MULTIQC as MULTIQC_raw} from './modules/multiqc.nf'
-include { MULTIQC as MULTIQC_trimmed} from './modules/multiqc.nf'
+include { MULTIQC as MULTIQC_raw } from './modules/multiqc.nf'
+include { MULTIQC as MULTIQC_trimmed } from './modules/multiqc.nf'
 include { FASTP } from './modules/fastp.nf'
+include { GET_REF_GENOME } from './modules/get_ref_genome.nf'
 
 workflow {
     main:
@@ -31,6 +32,11 @@ workflow {
         .map { meta, zip_files -> zip_files }
     fastqc_trimmed_zips.view()
     MULTIQC_trimmed(fastqc_trimmed_zips)
+
+    ref = GET_REF_GENOME(
+        params.reference_genome_fa,
+        params.reference_genes_gtf
+    )
 
     publish:
     multiqc_raw_report = MULTIQC_raw.out.html
