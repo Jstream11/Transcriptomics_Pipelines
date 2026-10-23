@@ -290,7 +290,7 @@ rule get_reference_genome:
         wget -O {params.genome_dir}/genes.gtf.gz {params.ref_genes_gtf}
         gunzip {params.genome_dir}/genes.gtf.gz
         """
-
+### FIXME: need to make work of unpaired
 if ALIGNER == 'star':
     rule create_star_index:
         """
